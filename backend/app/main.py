@@ -2,7 +2,7 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from app.core.database import init_db
-from app.api.routes import documents
+from app.api.routes import documents , query
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -21,6 +21,7 @@ app = FastAPI(
 )
 
 app.include_router(documents.router)
+app.include_router(query.router)
 
 app.add_middleware(
     CORSMiddleware,
