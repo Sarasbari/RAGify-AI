@@ -1,18 +1,22 @@
-import google.generativeai as genai
+from google import genai
+from google.genai import types
 from app.core.config import settings
 
-genai.configure(api_key=settings.GEMINI_API_KEY)
+client = genai.Client(api_key=settings.GEMINI_API_KEY)
 
-EMBEDDING_MODEL = "models/text-embedding-004"
-EMBEDDING_DIMS = 768  # Gemini embedding-004 outputs 768 dims
+EMBEDDING_MODEL = "gemini-embedding-001"
+EMBEDDING_DIMS = 768
 
 async def embed_text(text: str) -> list[float]:
-    result = genai.embed_content(
+    result = client.models.embed_content(
         model=EMBEDDING_MODEL,
-        content=text.strip(),
-        task_type="retrieval_query"
+        contents=text.strip(),
+        config=types.EmbedContentConfig(
+            task_type="RETRIEVAL_QUERY",
+            output_dimensionality=EMBEDDING_DIMS,
+        ),
     )
-    return result["embedding"]
+    return result.embeddings[0].values
 
 async def embed_batch(texts: list[str]) -> list[list[float]]:
     if not texts:
@@ -20,11 +24,14 @@ async def embed_batch(texts: list[str]) -> list[list[float]]:
 
     embeddings = []
     for text in texts:
-        result = genai.embed_content(
+        result = client.models.embed_content(
             model=EMBEDDING_MODEL,
-            content=text.strip().replace("\n", " "),
-            task_type="retrieval_document"  # different task type for indexing vs querying
+            contents=text.strip().replace("\n", " "),
+            config=types.EmbedContentConfig(
+                task_type="RETRIEVAL_DOCUMENT",
+                output_dimensionality=EMBEDDING_DIMS,
+            ),
         )
-        embeddings.append(result["embedding"])
+        embeddings.append(result.embeddings[0].values)
 
     return embeddings
