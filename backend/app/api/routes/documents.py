@@ -2,6 +2,7 @@ import uuid
 from fastapi import APIRouter, UploadFile, File, Depends, BackgroundTasks, HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
+from sqlalchemy import delete as sql_delete
 from app.core.database import get_db
 from app.models.document import Document
 from app.services.pdf_parser import parse_pdf
@@ -137,3 +138,23 @@ async def list_documents(db: AsyncSession = Depends(get_db)):
         }
         for d in docs
     ]
+
+
+@router.delete("/{document_id}")
+async def delete_document(
+    document_id: uuid.UUID,
+    db: AsyncSession = Depends(get_db)
+):
+    # Chunks auto-delete via CASCADE foreign key
+    result = await db.execute(
+        select(Document).where(Document.id == document_id)
+    )
+    doc = result.scalar_one_or_none()
+
+    if not doc:
+        raise HTTPException(status_code=404, detail="Document not found")
+
+    await db.delete(doc)
+    await db.commit()
+
+    return {"deleted": True, "document_id": str(document_id)}

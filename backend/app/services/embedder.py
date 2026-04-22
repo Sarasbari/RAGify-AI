@@ -1,35 +1,30 @@
-from openai import AsyncOpenAI
+import google.generativeai as genai
 from app.core.config import settings
 
-client = AsyncOpenAI(api_key=settings.OPENAI_API_KEY)
+genai.configure(api_key=settings.GEMINI_API_KEY)
 
-EMBEDDING_MODEL = "text-embedding-3-small"
-EMBEDDING_DIMS = 1536
+EMBEDDING_MODEL = "models/text-embedding-004"
+EMBEDDING_DIMS = 768  # Gemini embedding-004 outputs 768 dims
 
 async def embed_text(text: str) -> list[float]:
-    """Embed a single string. Used for query embedding."""
-    response = await client.embeddings.create(
+    result = genai.embed_content(
         model=EMBEDDING_MODEL,
-        input=text.strip()
+        content=text.strip(),
+        task_type="retrieval_query"
     )
-    return response.data[0].embedding
+    return result["embedding"]
 
 async def embed_batch(texts: list[str]) -> list[list[float]]:
-    """
-    Embed multiple texts in one API call.
-    OpenAI allows up to 2048 texts per batch.
-    One API call for 100 chunks vs 100 API calls — 100x faster + cheaper.
-    """
     if not texts:
         return []
 
-    # Clean inputs
-    cleaned = [t.strip().replace("\n", " ") for t in texts]
+    embeddings = []
+    for text in texts:
+        result = genai.embed_content(
+            model=EMBEDDING_MODEL,
+            content=text.strip().replace("\n", " "),
+            task_type="retrieval_document"  # different task type for indexing vs querying
+        )
+        embeddings.append(result["embedding"])
 
-    response = await client.embeddings.create(
-        model=EMBEDDING_MODEL,
-        input=cleaned
-    )
-
-    # Response order matches input order — guaranteed by OpenAI
-    return [item.embedding for item in sorted(response.data, key=lambda x: x.index)]
+    return embeddings

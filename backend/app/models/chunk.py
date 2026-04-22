@@ -17,5 +17,5 @@ class Chunk(Base):
     content: Mapped[str] = mapped_column(Text, nullable=False)
     page_number: Mapped[int] = mapped_column(Integer, default=1)
     chunk_index: Mapped[int] = mapped_column(Integer, default=0)
-    embedding: Mapped[list] = mapped_column(Vector(1536), nullable=True)
+    embedding: Mapped[list] = mapped_column(Vector(768), nullable=True)
     metadata_: Mapped[dict] = mapped_column("metadata", JSONB, default=dict)

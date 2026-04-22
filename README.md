@@ -180,11 +180,11 @@ Visit `http://localhost:5173`
 # backend/.env
 
 # Database
-DATABASE_URL=postgresql+asyncpg://postgres:postgres@localhost:5432/ragify
+DATABASE_URL=postgresql+asyncpg://postgres:postgres@localhost:5433/ragify
 
 # AI APIs
-ANTHROPIC_API_KEY=sk-ant-...
-OPENAI_API_KEY=sk-...
+GEMINI_API_KEY=AIza...
+GROQ_API_KEY=gsk_...
 COHERE_API_KEY=...
 
 # Auth (Supabase)
@@ -213,7 +213,7 @@ ragify-ai/
 │   │   ├── services/
 │   │   │   ├── pdf_parser.py        # PyMuPDF text extraction
 │   │   │   ├── chunker.py           # Recursive character splitter
-│   │   │   ├── embedder.py          # OpenAI embedding calls
+│   │   │   ├── embedder.py          # Gemini embedding calls
 │   │   │   ├── vector_store.py      # pgvector CRUD operations
 │   │   │   ├── reranker.py          # Cohere reranking
 │   │   │   └── rag_pipeline.py      # Orchestration: retrieve → rerank → generate

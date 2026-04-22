@@ -1,7 +1,8 @@
 import uuid
+import json
 from typing import AsyncGenerator
 from sqlalchemy.ext.asyncio import AsyncSession
-import anthropic
+from groq import AsyncGroq
 
 from app.core.config import settings
 from app.services.embedder import embed_text
@@ -9,14 +10,10 @@ from app.services.vector_store import similarity_search
 from app.services.reranker import rerank_chunks
 from app.models.chunk import Chunk as ChunkModel
 
-claude = anthropic.AsyncAnthropic(api_key=settings.ANTHROPIC_API_KEY)
+groq_client = AsyncGroq(api_key=settings.GROQ_API_KEY)
 
 
 def build_context(chunks: list[ChunkModel]) -> str:
-    """
-    Format retrieved chunks into a readable context block.
-    Each chunk is labeled with its source so Claude can cite it.
-    """
     parts = []
     for i, chunk in enumerate(chunks, 1):
         parts.append(
@@ -53,21 +50,11 @@ async def run_rag_pipeline(
     question: str,
     document_id: uuid.UUID
 ) -> AsyncGenerator[str, None]:
-    """
-    Full RAG pipeline as an async generator — streams tokens as they arrive.
-    
-    Flow:
-    1. Embed question
-    2. Vector similarity search → top 10 candidates
-    3. Re-rank → top 5 most relevant
-    4. Build prompt with context
-    5. Stream Claude's response token by token
-    """
 
-    # Step 1: Embed the question
+    # Step 1: Embed question
     query_embedding = await embed_text(question)
 
-    # Step 2: Retrieve top 10 candidates from pgvector
+    # Step 2: Vector search → top 10
     candidate_chunks = await similarity_search(
         session=session,
         query_embedding=query_embedding,
@@ -79,27 +66,31 @@ async def run_rag_pipeline(
         yield "I could not find any relevant content in the uploaded document."
         return
 
-    # Step 3: Re-rank → keep top 5
+    # Step 3: Rerank → top 5
     top_chunks = await rerank_chunks(
         query=question,
         chunks=candidate_chunks,
         top_n=settings.TOP_K
     )
 
-    # Step 4: Build context + prompt
+    # Step 4: Build prompt
     context = build_context(top_chunks)
     prompt = build_prompt(question, context)
 
-    # Step 5: Stream from Claude
-    async with claude.messages.stream(
-        model="claude-sonnet-4-20250514",
+    # Step 5: Stream from Groq (llama-3.3-70b — fast + strong reasoning)
+    stream = await groq_client.chat.completions.create(
+        model="llama-3.3-70b-versatile",
+        messages=[{"role": "user", "content": prompt}],
         max_tokens=1024,
-        messages=[{"role": "user", "content": prompt}]
-    ) as stream:
-        async for text in stream.text_stream:
-            yield text
+        stream=True
+    )
 
-    # After streaming — yield citations as a final structured chunk
+    async for chunk in stream:
+        delta = chunk.choices[0].delta.content
+        if delta:
+            yield delta
+
+    # Yield citations after stream ends
     citations = [
         {
             "source_index": i + 1,
@@ -110,6 +101,4 @@ async def run_rag_pipeline(
         for i, chunk in enumerate(top_chunks)
     ]
 
-    # Yield citations as a special JSON marker the frontend can parse
-    import json
     yield f"\n\n__CITATIONS__{json.dumps(citations)}__END_CITATIONS__"
