@@ -1,6 +1,7 @@
 import uuid
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, delete, text
+from sqlalchemy import or_
 from pgvector.sqlalchemy import Vector
 from app.models.document import Document
 from app.models.chunk import Chunk as ChunkModel
@@ -69,3 +70,29 @@ async def update_document_status(
         if page_count:
             doc.page_count = page_count
         await session.commit()
+
+async def multi_doc_similarity_search(
+    session: AsyncSession,
+    query_embedding: list[float],
+    document_ids: list[uuid.UUID],
+    top_k_per_doc: int = 6
+) -> dict[uuid.UUID, list[ChunkModel]]:
+    """
+    Search multiple documents in parallel.
+    Returns a dict of document_id → top chunks.
+    Fetches top_k_per_doc from each doc independently
+    so no single document dominates the results.
+    """
+    import asyncio
+
+    async def search_one(doc_id: uuid.UUID) -> tuple[uuid.UUID, list[ChunkModel]]:
+        result = await session.execute(
+            select(ChunkModel)
+            .where(ChunkModel.document_id == doc_id)
+            .order_by(ChunkModel.embedding.cosine_distance(query_embedding))
+            .limit(top_k_per_doc)
+        )
+        return doc_id, result.scalars().all()
+
+    results = await asyncio.gather(*[search_one(doc_id) for doc_id in document_ids])
+    return dict(results)

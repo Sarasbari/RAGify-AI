@@ -1,13 +1,16 @@
 import { useState, useRef, useEffect } from "react"
-import { Send, Bot, User } from "lucide-react"
-import { streamQuery, Citation, DocumentMeta } from "../lib/api"
+import { Send, Bot, User, GitCompare, X } from "lucide-react"
+import { streamQuery, streamCompare, Citation, DocumentMeta, listDocuments } from "../lib/api"
 import { CitationPanel } from "./CitationPanel"
+import { CompareBar } from "./CompareBar"
+import { MessageActions } from "./MessageActions"
 
 interface Message {
   role: "user" | "assistant"
   content: string
   citations?: Citation[]
   streaming?: boolean
+  mode?: "single" | "compare"
 }
 
 interface Props {
@@ -21,73 +24,104 @@ const SUGGESTED = [
   "Who are the parties involved?",
 ]
 
+const COMPARE_SUGGESTED = [
+  "Compare the termination clauses",
+  "Which contract has stricter confidentiality terms?",
+  "Compare the payment terms",
+  "What obligations differ between the two contracts?",
+]
+
 export function ChatInterface({ document }: Props) {
   const [messages, setMessages] = useState<Message[]>([])
   const [input, setInput] = useState("")
   const [loading, setLoading] = useState(false)
+  const [compareMode, setCompareMode] = useState(false)
+  const [compareDocIds, setCompareDocIds] = useState<string[]>([])
+  const [allDocs, setAllDocs] = useState<DocumentMeta[]>([])
   const bottomRef = useRef<HTMLDivElement>(null)
-  const textareaRef = useRef<HTMLTextAreaElement>(null)
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" })
   }, [messages])
 
+  // Fetch all docs for compare bar
+  useEffect(() => {
+    listDocuments().then(setAllDocs)
+  }, [document])
+
+  // Reset chat when document switches
+  useEffect(() => {
+    setMessages([])
+    setCompareMode(false)
+    setCompareDocIds([])
+  }, [document.document_id])
+
+  function startCompare(docIds: string[]) {
+    setCompareDocIds(docIds)
+    setCompareMode(true)
+    setMessages([])
+  }
+
+  function exitCompare() {
+    setCompareMode(false)
+    setCompareDocIds([])
+    setMessages([])
+  }
+
   async function ask(question: string) {
     if (!question.trim() || loading) return
 
-    const userMsg: Message = { role: "user", content: question }
-    const assistantMsg: Message = { role: "assistant", content: "", streaming: true }
+    const userMsg: Message = {
+      role: "user",
+      content: question,
+      mode: compareMode ? "compare" : "single"
+    }
+    const assistantMsg: Message = {
+      role: "assistant",
+      content: "",
+      streaming: true,
+      mode: compareMode ? "compare" : "single"
+    }
 
     setMessages(prev => [...prev, userMsg, assistantMsg])
     setInput("")
     setLoading(true)
 
-    await streamQuery(
-      question,
-      document.document_id,
+    const onToken = (token: string) => {
+      setMessages(prev => {
+        const updated = [...prev]
+        const last = updated[updated.length - 1]
+        updated[updated.length - 1] = { ...last, content: last.content + token }
+        return updated
+      })
+    }
 
-      // onToken — append each token to the last message
-      (token) => {
-        setMessages(prev => {
-          const updated = [...prev]
-          const last = updated[updated.length - 1]
-          updated[updated.length - 1] = {
-            ...last,
-            content: last.content + token
-          }
-          return updated
-        })
-      },
+    const onDone = (citations: Citation[]) => {
+      setMessages(prev => {
+        const updated = [...prev]
+        const last = updated[updated.length - 1]
+        updated[updated.length - 1] = { ...last, citations, streaming: false }
+        return updated
+      })
+      setLoading(false)
+    }
 
-      // onDone — attach citations, mark streaming finished
-      (citations) => {
-        setMessages(prev => {
-          const updated = [...prev]
-          const last = updated[updated.length - 1]
-          updated[updated.length - 1] = {
-            ...last,
-            citations,
-            streaming: false
-          }
-          return updated
-        })
-        setLoading(false)
-      },
+    const onError = (err: string) => {
+      setMessages(prev => {
+        const updated = [...prev]
+        updated[updated.length - 1] = {
+          role: "assistant", content: `Error: ${err}`, streaming: false
+        }
+        return updated
+      })
+      setLoading(false)
+    }
 
-      // onError
-      (err) => {
-        setMessages(prev => {
-          const updated = [...prev]
-          updated[updated.length - 1] = {
-            role: "assistant",
-            content: `Error: ${err}`,
-            streaming: false
-          }
-          return updated
-        })
-        setLoading(false)
-      }
-    )
+    if (compareMode) {
+      await streamCompare(question, compareDocIds, onToken, onDone, onError)
+    } else {
+      await streamQuery(question, document.document_id, onToken, onDone, onError)
+    }
   }
 
   function handleKey(e: React.KeyboardEvent) {
@@ -97,8 +131,36 @@ export function ChatInterface({ document }: Props) {
     }
   }
 
+  const suggested = compareMode ? COMPARE_SUGGESTED : SUGGESTED
+
   return (
     <div className="flex flex-col h-full">
+
+      {/* Compare mode banner */}
+      {compareMode && (
+        <div className="flex items-center gap-2 px-4 py-2 bg-gold-400/5
+          border-b border-gold-400/20 shrink-0">
+          <GitCompare className="w-3.5 h-3.5 text-gold-400" />
+          <span className="font-mono text-xs text-gold-400 flex-1">
+            Comparing {compareDocIds.length} documents
+          </span>
+          <button
+            onClick={exitCompare}
+            className="text-ink-500 hover:text-ink-200 transition-colors"
+          >
+            <X className="w-3.5 h-3.5" />
+          </button>
+        </div>
+      )}
+
+      {/* Compare bar — only in single mode with multiple docs available */}
+      {!compareMode && (
+        <CompareBar
+          allDocs={allDocs}
+          activeDoc={document}
+          onStartCompare={startCompare}
+        />
+      )}
 
       {/* Messages */}
       <div className="flex-1 overflow-y-auto px-2 py-4 flex flex-col gap-6">
@@ -107,14 +169,17 @@ export function ChatInterface({ document }: Props) {
           <div className="flex flex-col items-center justify-center h-full gap-6 animate-fade-up">
             <div className="text-center">
               <p className="font-display text-2xl text-ink-200 mb-1">
-                Ask about your document
+                {compareMode ? "Compare documents" : "Ask about your document"}
               </p>
               <p className="font-mono text-xs text-ink-500">
-                {document.filename} · {document.page_count} pages
+                {compareMode
+                  ? `${compareDocIds.length} documents loaded`
+                  : `${document.filename} · ${document.page_count} pages`
+                }
               </p>
             </div>
             <div className="flex flex-col gap-2 w-full max-w-sm">
-              {SUGGESTED.map((q) => (
+              {suggested.map((q) => (
                 <button
                   key={q}
                   onClick={() => ask(q)}
@@ -132,12 +197,20 @@ export function ChatInterface({ document }: Props) {
         {messages.map((msg, i) => (
           <div
             key={i}
-            className={`flex gap-3 animate-fade-up ${msg.role === "user" ? "justify-end" : "justify-start"}`}
+            className={`flex gap-3 animate-fade-up
+              ${msg.role === "user" ? "justify-end" : "justify-start"}`}
           >
             {msg.role === "assistant" && (
-              <div className="w-7 h-7 rounded-full bg-gold-400/10 border border-gold-400/20
-                flex items-center justify-center shrink-0 mt-0.5">
-                <Bot className="w-3.5 h-3.5 text-gold-400" />
+              <div className={`w-7 h-7 rounded-full border flex items-center
+                justify-center shrink-0 mt-0.5
+                ${msg.mode === "compare"
+                  ? "bg-gold-400/10 border-gold-400/20"
+                  : "bg-gold-400/10 border-gold-400/20"
+                }`}>
+                {msg.mode === "compare"
+                  ? <GitCompare className="w-3.5 h-3.5 text-gold-400" />
+                  : <Bot className="w-3.5 h-3.5 text-gold-400" />
+                }
               </div>
             )}
 
@@ -149,7 +222,8 @@ export function ChatInterface({ document }: Props) {
                   </p>
                 </div>
               ) : (
-                <div className="rounded-2xl rounded-tl-sm px-4 py-3 bg-ink-900 border border-ink-800">
+                <div className="rounded-2xl rounded-tl-sm px-4 py-3
+                  bg-ink-900 border border-ink-800">
                   <p className="text-sm font-body text-ink-200 leading-relaxed whitespace-pre-wrap">
                     {msg.content}
                     {msg.streaming && (
@@ -165,7 +239,15 @@ export function ChatInterface({ document }: Props) {
                     )}
                   </p>
                   {!msg.streaming && msg.citations && (
-                    <CitationPanel citations={msg.citations} />
+                    <>
+                      <CitationPanel citations={msg.citations} />
+                      <MessageActions
+                        content={msg.content}
+                        citations={msg.citations}
+                        question={messages[messages.indexOf(msg) - 1]?.content || ""}
+                        documentName={document.filename}
+                      />
+                    </>
                   )}
                 </div>
               )}
@@ -184,16 +266,18 @@ export function ChatInterface({ document }: Props) {
       </div>
 
       {/* Input */}
-      <div className="border-t border-ink-800 px-3 py-3">
+      <div className="border-t border-ink-800 px-3 py-3 shrink-0">
         <div className="flex gap-2 items-end bg-ink-900 border border-ink-700
           rounded-xl px-3 py-2 focus-within:border-ink-500 transition-colors">
           <textarea
-            ref={textareaRef}
             value={input}
             onChange={(e) => setInput(e.target.value)}
             onKeyDown={handleKey}
             disabled={loading}
-            placeholder="Ask anything about this document..."
+            placeholder={compareMode
+              ? "Ask a comparison question..."
+              : "Ask anything about this document..."
+            }
             rows={1}
             className="flex-1 bg-transparent text-sm font-body text-ink-100
               placeholder-ink-600 resize-none outline-none leading-relaxed
@@ -204,7 +288,7 @@ export function ChatInterface({ document }: Props) {
             disabled={loading || !input.trim()}
             className="w-8 h-8 rounded-lg bg-gold-400 hover:bg-gold-300
               disabled:opacity-30 disabled:cursor-not-allowed
-              flex items-center justify-center shrink-0 transition-all duration-150
+              flex items-center justify-center shrink-0 transition-all
               active:scale-95"
           >
             <Send className="w-3.5 h-3.5 text-ink-950" />

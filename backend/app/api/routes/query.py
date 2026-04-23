@@ -72,3 +72,58 @@ async def query_document(
             "X-Accel-Buffering": "no"  # disables Nginx buffering if deployed behind Nginx
         }
     )
+
+class MultiQueryRequest(BaseModel):
+    question: str
+    document_ids: list[str]  # list of 2+ document IDs
+
+
+@router.post("/compare")
+async def compare_documents(
+    request: MultiQueryRequest,
+    db: AsyncSession = Depends(get_db)
+):
+    if len(request.document_ids) < 2:
+        raise HTTPException(status_code=400, detail="Provide at least 2 document IDs to compare")
+
+    if len(request.document_ids) > 4:
+        raise HTTPException(status_code=400, detail="Max 4 documents per comparison")
+
+    # Parse and validate all document IDs
+    try:
+        doc_ids = [uuid.UUID(did) for did in request.document_ids]
+    except ValueError:
+        raise HTTPException(status_code=400, detail="Invalid document_id format")
+
+    # Fetch all documents and verify they're ready
+    result = await db.execute(
+        select(Document).where(Document.id.in_(doc_ids))
+    )
+    docs = result.scalars().all()
+
+    if len(docs) != len(doc_ids):
+        raise HTTPException(status_code=404, detail="One or more documents not found")
+
+    not_ready = [d.filename for d in docs if d.status != "ready"]
+    if not_ready:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Documents not ready: {', '.join(not_ready)}"
+        )
+
+    # Build id → name map for context labeling
+    doc_names = {d.id: d.original_name for d in docs}
+
+    async def stream_gen():
+        async for token in run_multi_doc_pipeline(
+            db, request.question, doc_ids, doc_names
+        ):
+            safe = token.replace("\n", "\\n")
+            yield f"data: {safe}\n\n"
+        yield "data: [DONE]\n\n"
+
+    return StreamingResponse(
+        stream_gen(),
+        media_type="text/event-stream",
+        headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"}
+    )

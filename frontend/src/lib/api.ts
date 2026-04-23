@@ -102,3 +102,56 @@ export async function streamQuery(
 
   onDone([])
 }
+
+export async function streamCompare(
+  question: string,
+  documentIds: string[],
+  onToken: (token: string) => void,
+  onDone: (citations: Citation[]) => void,
+  onError: (err: string) => void
+) {
+  const res = await fetch(`${BASE}/api/query/compare`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ question, document_ids: documentIds }),
+  })
+
+  if (!res.ok) {
+    onError("Comparison failed. Are both documents ready?")
+    return
+  }
+
+  const reader = res.body!.getReader()
+  const decoder = new TextDecoder()
+  let buffer = ""
+
+  while (true) {
+    const { done, value } = await reader.read()
+    if (done) break
+
+    buffer += decoder.decode(value, { stream: true })
+    const lines = buffer.split("\n")
+    buffer = lines.pop() || ""
+
+    for (const line of lines) {
+      if (!line.startsWith("data: ")) continue
+      const data = line.slice(6)
+      if (data === "[DONE]") continue
+
+      const token = data.replace(/\\n/g, "\n")
+
+      if (token.includes("__CITATIONS__")) {
+        const parts = token.split("__CITATIONS__")
+        if (parts[0]) onToken(parts[0])
+        try {
+          onDone(JSON.parse(parts[1].replace("__END_CITATIONS__", "")))
+        } catch { onDone([]) }
+        return
+      }
+
+      onToken(token)
+    }
+  }
+
+  onDone([])
+}
