@@ -1,17 +1,15 @@
+import os
 from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from app.core.database import init_db
-from app.api.routes import documents , query
+from app.api.routes import documents, query
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    # Runs once on startup
     await init_db()
     print("✅ Database initialized")
     yield
-    # Runs on shutdown
-    print("👋 Shutting down")
 
 app = FastAPI(
     title="Ragify-AI",
@@ -20,16 +18,20 @@ app = FastAPI(
     lifespan=lifespan
 )
 
-app.include_router(documents.router)
-app.include_router(query.router)
+# Read allowed origins from env — comma separated
+raw_origins = os.getenv("ALLOWED_ORIGINS", "http://localhost:5173")
+origins = [o.strip() for o in raw_origins.split(",")]
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:5173"],
+    allow_origins=origins,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+app.include_router(documents.router)
+app.include_router(query.router)
 
 @app.get("/health")
 async def health():
