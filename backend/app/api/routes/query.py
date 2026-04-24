@@ -7,7 +7,7 @@ from pydantic import BaseModel
 
 from app.core.database import get_db
 from app.models.document import Document
-from app.services.rag_pipeline import run_rag_pipeline
+from app.services.rag_pipeline import run_rag_pipeline, run_multi_doc_pipeline
 
 router = APIRouter(prefix="/api/query", tags=["query"])
 

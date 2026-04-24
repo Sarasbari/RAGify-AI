@@ -4,7 +4,7 @@
 
 # Ragify-AI
 
-### Production-grade Legal Document Intelligence powered by RAG + Claude AI
+### Production-grade Legal Document Intelligence powered by RAG + Groq + Gemini
 
 Ask questions about contracts, NDAs, and legal documents in plain English.  
 Get precise answers with exact clause citations — in seconds.
@@ -15,7 +15,8 @@ Get precise answers with exact clause citations — in seconds.
 [![FastAPI](https://img.shields.io/badge/FastAPI-0.110+-009688?style=flat-square&logo=fastapi&logoColor=white)](https://fastapi.tiangolo.com)
 [![React](https://img.shields.io/badge/React-18+-61DAFB?style=flat-square&logo=react&logoColor=white)](https://react.dev)
 [![PostgreSQL](https://img.shields.io/badge/pgvector-PostgreSQL-4169E1?style=flat-square&logo=postgresql&logoColor=white)](https://github.com/pgvector/pgvector)
-[![Claude API](https://img.shields.io/badge/Claude-Anthropic_API-D97757?style=flat-square)](https://anthropic.com)
+[![Groq](https://img.shields.io/badge/Groq-LLM_Inference-111111?style=flat-square)](https://groq.com)
+[![Gemini](https://img.shields.io/badge/Gemini-Embeddings-4285F4?style=flat-square)](https://ai.google.dev)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg?style=flat-square)](LICENSE)
 [![PRs Welcome](https://img.shields.io/badge/PRs-welcome-brightgreen.svg?style=flat-square)](CONTRIBUTING.md)
 
@@ -33,7 +34,7 @@ Get precise answers with exact clause citations — in seconds.
 
 ## What is Ragify-AI?
 
-Ragify-AI is a **Retrieval-Augmented Generation (RAG)** system built for legal document analysis. Upload any contract, NDA, or legal agreement — and ask questions in plain English. The system retrieves the exact relevant clauses and uses Claude AI to generate precise, cited answers.
+Ragify-AI is a **Retrieval-Augmented Generation (RAG)** system built for legal document analysis. Upload any contract, NDA, or legal agreement — and ask questions in plain English. The system retrieves relevant clauses with vector search, re-ranks results, and uses a Groq-hosted LLM to generate precise, cited answers.
 
 No more manually scanning 50-page contracts. No more missing buried clauses. Just ask.
 
@@ -47,14 +48,14 @@ No more manually scanning 50-page contracts. No more missing buried clauses. Jus
 
 ## Why Ragify-AI stands out
 
-Most RAG demos use ChromaDB and return vague answers. Ragify-AI is built differently:
+Ragify-AI is built for practical, production-style workflows:
 
-- **Hybrid search** — combines dense vector search (semantic) + BM25 (keyword) so clause numbers like "Section 4.2(b)" are never missed
-- **Re-ranking** — top retrieved chunks are re-scored before Claude sees them, dramatically improving answer quality
-- **Citation tracking** — every answer includes exact page number, section, and clause reference
-- **Async pipeline** — PDF ingestion runs in background; a 50-page contract is ready in under 30 seconds
-- **pgvector over ChromaDB** — production Postgres, not an in-memory toy database
-- **Streaming responses** — Claude's answer streams token-by-token, no waiting
+- **Asynchronous ingestion** — upload returns immediately while parsing, chunking, and embedding run in background
+- **Semantic retrieval with pgvector** — cosine similarity search over per-chunk embeddings
+- **Re-ranking with Cohere** — improves answer precision before generation
+- **Streaming responses (SSE)** — answers stream token by token for faster UX
+- **Citation tracking** — each answer includes source/page references and chunk previews
+- **Multi-document comparison** — compare clauses across up to 4 ready documents in one query
 
 ---
 
@@ -72,13 +73,13 @@ Most RAG demos use ChromaDB and return vague answers. Ragify-AI is built differe
 ┌─────────────────────────────────────────────────────────────────┐
 │                        QUERY PIPELINE                           │
 │                                                                  │
-│  User Question → Embed Query → Hybrid Search (Vector + BM25)    │
+│  User Question → Embed Query → Vector Similarity Search          │
 │                                      ↓                          │
 │                              Cohere Re-rank                      │
 │                                      ↓                          │
 │                         Top-5 Chunks + Metadata                  │
 │                                      ↓                          │
-│                    Claude API (Streaming) → Cited Answer         │
+│                Groq LLM (Streaming) → Cited Answer               │
 └─────────────────────────────────────────────────────────────────┘
 ```
 
@@ -87,30 +88,25 @@ Most RAG demos use ChromaDB and return vague answers. Ragify-AI is built differe
 | Layer | Technology | Why |
 |---|---|---|
 | Backend | FastAPI + Python 3.11 | Async, production-ready REST API |
-| PDF Parsing | PyMuPDF (fitz) | Handles text + scanned PDFs |
-| Embeddings | OpenAI text-embedding-3-small | Best quality/cost at 1536 dims |
+| PDF Parsing | PyMuPDF (fitz) | Reliable PDF text extraction |
+| Embeddings | Gemini `gemini-embedding-001` | Fast semantic embeddings |
 | Vector DB | pgvector (PostgreSQL) | Production-grade, not a toy |
-| Keyword Search | BM25 (rank_bm25) | Catches exact clause numbers |
 | Re-ranking | Cohere Rerank v3 | Boosts retrieval precision |
-| LLM | Claude claude-sonnet-4-20250514 | Best legal reasoning available |
+| LLM | Groq `llama-3.3-70b-versatile` | Fast streamed generation |
 | Frontend | React 18 + Vite + Tailwind | Fast, modern UI |
-| Auth | Supabase Auth | JWT-based, free tier |
-| Storage | Supabase Storage | PDF file storage |
-| Deployment | Vercel (frontend) + Railway (backend) | Zero-config deploy |
+| Deployment | Render + Vercel-compatible frontend builds | Simple cloud deployment |
 
 ---
 
 ## Features
 
-- **PDF ingestion** — drag and drop upload with real-time processing status (Parsing → Chunking → Embedding → Ready)
-- **Semantic Q&A** — ask anything in natural language
-- **Exact citations** — every answer shows `Section X, Page Y: [clause text]`
-- **Multi-document support** — upload multiple contracts, switch context per document
-- **Streaming chat** — answers appear word-by-word via Server-Sent Events
-- **Document management** — list, preview, and delete uploaded documents
-- **Scanned PDF support** — OCR fallback via pytesseract for image-only PDFs
-- **User isolation** — each user only searches their own documents
-- **Dark / light mode** — full theming support
+- **PDF ingestion pipeline** — parse, chunk, embed, and store in the background
+- **Semantic Q&A** — ask legal questions in natural language
+- **Streaming chat** — token streaming via Server-Sent Events (SSE)
+- **Citation panel** — source index, page number, and chunk preview for traceability
+- **Multi-document compare mode** — compare clauses across multiple documents
+- **Document lifecycle management** — upload, status polling, list, and delete endpoints
+- **Answer actions** — copy response with sources and export as PDF
 
 ---
 
@@ -121,7 +117,7 @@ Most RAG demos use ChromaDB and return vague answers. Ragify-AI is built differe
 - Python 3.11+
 - Node.js 18+
 - Docker (for local pgvector)
-- API keys: Anthropic, OpenAI (embeddings), Cohere (reranking)
+- API keys: Gemini, Groq, Cohere
 
 ### 1. Clone the repo
 
@@ -143,17 +139,17 @@ This spins up a Postgres instance with the pgvector extension pre-installed.
 ```bash
 cd backend
 python -m venv venv
-source venv/bin/activate          # Windows: venv\Scripts\activate
+# Windows PowerShell
+.\venv\Scripts\Activate.ps1
+# macOS/Linux
+# source venv/bin/activate
 pip install -r requirements.txt
 
-cp .env.example .env
+# Windows
+copy .env.example .env
+# macOS/Linux
+# cp .env.example .env
 # Fill in your API keys in .env
-```
-
-Run database migrations:
-
-```bash
-python -m app.core.database init
 ```
 
 Start the server:
@@ -167,8 +163,10 @@ uvicorn app.main:app --reload --port 8000
 ```bash
 cd frontend
 npm install
-cp .env.example .env.local
-# Set VITE_API_URL=http://localhost:8000
+# Windows PowerShell
+"VITE_API_URL=http://localhost:8000" | Out-File -Encoding ascii .env.local
+# macOS/Linux
+# echo "VITE_API_URL=http://localhost:8000" > .env.local
 npm run dev
 ```
 
@@ -187,12 +185,11 @@ GEMINI_API_KEY=AIza...
 GROQ_API_KEY=gsk_...
 COHERE_API_KEY=...
 
-# Auth (Supabase)
-SUPABASE_URL=https://xxx.supabase.co
-SUPABASE_SERVICE_KEY=eyJ...
-
-# Storage
-SUPABASE_STORAGE_BUCKET=documents
+# Optional runtime config
+ALLOWED_ORIGINS=http://localhost:5173
+CHUNK_SIZE=600
+CHUNK_OVERLAP=100
+TOP_K=5
 ```
 
 ---
@@ -206,7 +203,7 @@ ragify-ai/
 │   │   ├── api/
 │   │   │   └── routes/
 │   │   │       ├── documents.py     # Upload, list, delete endpoints
-│   │   │       └── query.py         # Q&A + streaming endpoint
+│   │   │       └── query.py         # Q&A + compare streaming endpoints
 │   │   ├── core/
 │   │   │   ├── config.py            # Settings via pydantic-settings
 │   │   │   └── database.py          # Async SQLAlchemy + pgvector setup
@@ -226,11 +223,14 @@ ragify-ai/
 │   ├── src/
 │   │   ├── components/
 │   │   │   ├── UploadZone.tsx       # Drag-drop PDF upload
-│   │   │   ├── ChatInterface.tsx    # Streaming Q&A chat
+│   │   │   ├── ChatInterface.tsx    # Streaming Q&A + compare mode
 │   │   │   ├── CitationPanel.tsx    # Cited clause viewer
+│   │   │   ├── CompareBar.tsx       # Multi-doc comparison picker
 │   │   │   └── DocumentSidebar.tsx  # Document list + switcher
-│   │   └── pages/
-│   │       └── App.tsx
+│   │   ├── lib/
+│   │   │   ├── api.ts               # REST + SSE client helpers
+│   │   │   └── export.ts            # PDF export helper
+│   │   └── App.tsx
 │   └── package.json
 ├── docker-compose.yml               # pgvector + postgres local dev
 └── README.md
@@ -255,42 +255,53 @@ Response:
   "document_id": "uuid",
   "filename": "contract.pdf",
   "status": "processing",
-  "pages": 42
+  "message": "Document is being processed. Poll /status for updates."
 }
 ```
 
 ### Ask a question
 
 ```http
-POST /api/query
+POST /api/query/
 Content-Type: application/json
 
 {
   "question": "What are the payment terms?",
-  "document_id": "uuid",
-  "stream": true
+  "document_id": "uuid"
 }
 ```
 
 Streaming response (SSE):
 ```
-data: {"token": "Based"}
-data: {"token": " on"}
-data: {"token": " Section"}
+data: Answer token chunk 1
+data: Answer token chunk 2
 ...
-data: {"citations": [{"page": 7, "section": "4.1", "text": "Payment shall be due..."}]}
+data: __CITATIONS__[{"source_index":1,"page_number":7,"chunk_index":3,"preview":"..."}]__END_CITATIONS__
+data: [DONE]
+```
+
+### Compare across multiple documents
+
+```http
+POST /api/query/compare
+Content-Type: application/json
+
+{
+  "question": "Compare termination clauses",
+  "document_ids": ["uuid-1", "uuid-2"]
+}
 ```
 
 ---
 
 ## How RAG works (the short version)
 
-RAG solves a fundamental LLM limitation: Claude cannot read your private documents. Instead of fine-tuning (expensive, static), RAG retrieves relevant context at query time and injects it into Claude's prompt.
+RAG solves a fundamental LLM limitation: base LLMs cannot read your private documents by default. Instead of fine-tuning (expensive, static), RAG retrieves relevant context at query time and injects it into the generation prompt.
 
 **Ingestion:**
 1. PDF → extract raw text with page numbers preserved
 2. Split text into overlapping chunks (~600 tokens, 100 token overlap)
-3. Each chunk → OpenAI embedding API → 1536-dimensional vector
+3. Each chunk → Gemini embedding API → normalized vector representation
 4. Store vector + metadata (page, section) in pgvector
 
 **Query:**
@@ -298,21 +309,21 @@ RAG solves a fundamental LLM limitation: Claude cannot read your private documen
 2. Cosine similarity search in pgvector → top 10 candidate chunks
 3. Cohere reranker scores all 10 → pick top 5
 4. Build prompt: `[System instructions] + [5 chunks with citations] + [User question]`
-5. Claude API (streaming) → grounded, cited answer
+5. Groq chat completion (streaming) → grounded, cited answer
 
 ---
 
 ## Roadmap
 
 - [x] Core RAG pipeline (ingest + query)
-- [x] Hybrid search (vector + BM25)
+- [x] Vector search with pgvector
 - [x] Re-ranking with Cohere
 - [x] Streaming responses
 - [x] Citation tracking
-- [ ] Multi-document comparison ("compare clause 5 across both contracts")
+- [x] Multi-document comparison (up to 4 documents)
+- [x] Export answers to PDF report
 - [ ] Table extraction from PDFs
 - [ ] Clause summarization mode
-- [ ] Export answers to PDF report
 - [ ] REST API authentication (API keys for B2B)
 - [ ] Support for DOCX and TXT formats
 
@@ -339,10 +350,10 @@ Building this project teaches you:
 - **RAG architecture** — the complete ingestion and retrieval pipeline
 - **Vector databases** — how pgvector stores and queries embeddings
 - **Chunking strategies** — why overlap and chunk size dominate retrieval quality
-- **Hybrid search** — combining semantic and keyword search for legal text
+- **Retrieval quality** — vector search + reranking for legal text
 - **Prompt engineering** — forcing factual, cited answers from an LLM
 - **FastAPI async** — background tasks, streaming, dependency injection
-- **Production deployment** — Docker, Railway, Vercel, environment configuration
+- **Production deployment** — Docker, Render, Vite environment configuration
 
 Follow the build journey: [sarasbari.dev/ragify-ai](https://github.com/Sarasbari)
 
