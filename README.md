@@ -73,27 +73,11 @@ Ragify-AI is built for practical, production-style workflows:
 
 ## Architecture
 
-```
-┌─────────────────────────────────────────────────────────────────┐
-│                        INGESTION PIPELINE                        │
-│                                                                  │
-│  PDF Upload → PyMuPDF Parser → Recursive Chunker → Embeddings   │
-│                     ↓                                   ↓        │
-│             Page + Metadata                       pgvector DB    │
-└─────────────────────────────────────────────────────────────────┘
+<div align="center">
 
-┌─────────────────────────────────────────────────────────────────┐
-│                        QUERY PIPELINE                           │
-│                                                                  │
-│  User Question → Embed Query → Vector Similarity Search          │
-│                                      ↓                          │
-│                              Cohere Re-rank                      │
-│                                      ↓                          │
-│                         Top-5 Chunks + Metadata                  │
-│                                      ↓                          │
-│                Groq LLM (Streaming) → Cited Answer               │
-└─────────────────────────────────────────────────────────────────┘
-```
+![Ragify-AI System Architecture](assets/architecture.png)
+
+</div>
 
 **Tech Stack:**
 
