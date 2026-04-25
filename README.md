@@ -22,13 +22,25 @@ Get precise answers with exact clause citations — in seconds.
 
 <br/>
 
-[Live Demo](#) · [Report Bug](issues) · [Request Feature](issues) · [Documentation](#documentation)
+[🌐 Live Demo](https://ragify-ai-bay.vercel.app) · [📡 API Endpoint](https://ragify-ai.onrender.com) · [🐛 Report Bug](https://github.com/Sarasbari/RAGify-AI/issues) · [✨ Request Feature](https://github.com/Sarasbari/RAGify-AI/issues) · [📖 Documentation](#documentation)
 
 <br/>
 
-![Ragify-AI Demo](assets/demo.gif)
-
 </div>
+
+---
+
+## 🔗 Deployed Links
+
+| Service | URL | Platform |
+|---|---|---|
+| **Frontend (Live App)** | [ragify-ai-bay.vercel.app](https://ragify-ai-bay.vercel.app) | Vercel |
+| **Backend API** | [ragify-ai.onrender.com](https://ragify-ai.onrender.com) | Render |
+| **API Health Check** | [ragify-ai.onrender.com/health](https://ragify-ai.onrender.com/health) | Render |
+| **API Documentation** | [ragify-ai.onrender.com/docs](https://ragify-ai.onrender.com/docs) | Swagger / FastAPI |
+| **Source Code** | [github.com/Sarasbari/RAGify-AI](https://github.com/Sarasbari/RAGify-AI) | GitHub |
+
+> **Note:** The backend is deployed on Render's free tier. The initial request after a period of inactivity may take ~30 seconds while the instance spins up (cold start).
 
 ---
 
@@ -46,11 +58,11 @@ No more manually scanning 50-page contracts. No more missing buried clauses. Jus
 
 ---
 
-## Why Ragify-AI stands out
+## Why Ragify-AI Stands Out
 
 Ragify-AI is built for practical, production-style workflows:
 
-- **Asynchronous ingestion** — upload returns immediately while parsing, chunking, and embedding run in background
+- **Asynchronous ingestion** — upload returns immediately while parsing, chunking, and embedding run in the background
 - **Semantic retrieval with pgvector** — cosine similarity search over per-chunk embeddings
 - **Re-ranking with Cohere** — improves answer precision before generation
 - **Streaming responses (SSE)** — answers stream token by token for faster UX
@@ -90,11 +102,11 @@ Ragify-AI is built for practical, production-style workflows:
 | Backend | FastAPI + Python 3.11 | Async, production-ready REST API |
 | PDF Parsing | PyMuPDF (fitz) | Reliable PDF text extraction |
 | Embeddings | Gemini `gemini-embedding-001` | Fast semantic embeddings |
-| Vector DB | pgvector (PostgreSQL) | Production-grade, not a toy |
+| Vector DB | pgvector (PostgreSQL) | Production-grade vector storage |
 | Re-ranking | Cohere Rerank v3 | Boosts retrieval precision |
 | LLM | Groq `llama-3.3-70b-versatile` | Fast streamed generation |
-| Frontend | React 18 + Vite + Tailwind | Fast, modern UI |
-| Deployment | Render + Vercel-compatible frontend builds | Simple cloud deployment |
+| Frontend | React 18 + Vite + Tailwind CSS | Modern, responsive UI |
+| Deployment | Vercel (Frontend) + Render (Backend) | Production-ready cloud hosting |
 
 ---
 
@@ -122,8 +134,8 @@ Ragify-AI is built for practical, production-style workflows:
 ### 1. Clone the repo
 
 ```bash
-git clone https://github.com/Sarasbari/ragify-ai.git
-cd ragify-ai
+git clone https://github.com/Sarasbari/RAGify-AI.git
+cd RAGify-AI
 ```
 
 ### 2. Start pgvector locally
@@ -172,7 +184,7 @@ npm run dev
 
 Visit `http://localhost:5173`
 
-### Environment variables
+### Environment Variables
 
 ```env
 # backend/.env
@@ -197,42 +209,46 @@ TOP_K=5
 ## Project Structure
 
 ```
-ragify-ai/
+RAGify-AI/
 ├── backend/
 │   ├── app/
 │   │   ├── api/
 │   │   │   └── routes/
-│   │   │       ├── documents.py     # Upload, list, delete endpoints
-│   │   │       └── query.py         # Q&A + compare streaming endpoints
+│   │   │       ├── documents.py        # Upload, list, delete, status endpoints
+│   │   │       └── query.py            # Q&A + compare streaming endpoints
 │   │   ├── core/
-│   │   │   ├── config.py            # Settings via pydantic-settings
-│   │   │   └── database.py          # Async SQLAlchemy + pgvector setup
+│   │   │   ├── config.py               # Settings via pydantic-settings
+│   │   │   └── database.py             # Async SQLAlchemy + pgvector setup
 │   │   ├── services/
-│   │   │   ├── pdf_parser.py        # PyMuPDF text extraction
-│   │   │   ├── chunker.py           # Recursive character splitter
-│   │   │   ├── embedder.py          # Gemini embedding calls
-│   │   │   ├── vector_store.py      # pgvector CRUD operations
-│   │   │   ├── reranker.py          # Cohere reranking
-│   │   │   └── rag_pipeline.py      # Orchestration: retrieve → rerank → generate
+│   │   │   ├── pdf_parser.py           # PyMuPDF text extraction
+│   │   │   ├── chunker.py              # Recursive character splitter
+│   │   │   ├── embedder.py             # Gemini embedding calls
+│   │   │   ├── vector_store.py         # pgvector CRUD operations
+│   │   │   ├── reranker.py             # Cohere reranking
+│   │   │   └── rag_pipeline.py         # Orchestration: retrieve → rerank → generate
 │   │   └── models/
-│   │       ├── document.py          # SQLAlchemy ORM models
+│   │       ├── document.py             # SQLAlchemy ORM models
 │   │       └── chunk.py
 │   ├── requirements.txt
+│   ├── render.yaml                     # Render deployment configuration
 │   └── Dockerfile
 ├── frontend/
 │   ├── src/
 │   │   ├── components/
-│   │   │   ├── UploadZone.tsx       # Drag-drop PDF upload
-│   │   │   ├── ChatInterface.tsx    # Streaming Q&A + compare mode
-│   │   │   ├── CitationPanel.tsx    # Cited clause viewer
-│   │   │   ├── CompareBar.tsx       # Multi-doc comparison picker
-│   │   │   └── DocumentSidebar.tsx  # Document list + switcher
+│   │   │   ├── UploadZone.tsx          # Drag-drop PDF upload with progress
+│   │   │   ├── ChatInterface.tsx       # Streaming Q&A + compare mode
+│   │   │   ├── CitationPanel.tsx       # Cited clause viewer
+│   │   │   ├── CompareBar.tsx          # Multi-doc comparison picker
+│   │   │   ├── DocumentSidebar.tsx     # Document list + switcher
+│   │   │   └── MessageActions.tsx      # Copy, export, and share actions
 │   │   ├── lib/
-│   │   │   ├── api.ts               # REST + SSE client helpers
-│   │   │   └── export.ts            # PDF export helper
+│   │   │   ├── api.ts                  # REST + SSE client helpers
+│   │   │   └── export.ts              # PDF export helper
 │   │   └── App.tsx
-│   └── package.json
-├── docker-compose.yml               # pgvector + postgres local dev
+│   ├── package.json
+│   ├── tailwind.config.js
+│   └── vite.config.ts
+├── docker-compose.yml                  # pgvector + postgres local dev
 └── README.md
 ```
 
@@ -292,9 +308,17 @@ Content-Type: application/json
 }
 ```
 
+### Health check
+
+```http
+GET /health
+```
+
+> **Interactive API docs** are available at [ragify-ai.onrender.com/docs](https://ragify-ai.onrender.com/docs) (Swagger UI).
+
 ---
 
-## How RAG works (the short version)
+## How RAG Works (the short version)
 
 RAG solves a fundamental LLM limitation: base LLMs cannot read your private documents by default. Instead of fine-tuning (expensive, static), RAG retrieves relevant context at query time and injects it into the generation prompt.
 
@@ -313,6 +337,22 @@ RAG solves a fundamental LLM limitation: base LLMs cannot read your private docu
 
 ---
 
+## Deployment
+
+### Frontend (Vercel)
+
+The frontend is deployed automatically via Vercel on push to `main`. The production environment variable `VITE_API_URL` points to the Render backend.
+
+### Backend (Render)
+
+The backend is deployed as a Docker web service on Render. Configuration is defined in [`render.yaml`](backend/render.yaml). Key settings:
+
+- **Runtime:** Docker
+- **Health check:** `/health`
+- **Environment variables:** `DATABASE_URL`, `GEMINI_API_KEY`, `GROQ_API_KEY`, `COHERE_API_KEY`, `ALLOWED_ORIGINS`
+
+---
+
 ## Roadmap
 
 - [x] Core RAG pipeline (ingest + query)
@@ -322,6 +362,7 @@ RAG solves a fundamental LLM limitation: base LLMs cannot read your private docu
 - [x] Citation tracking
 - [x] Multi-document comparison (up to 4 documents)
 - [x] Export answers to PDF report
+- [x] Production deployment (Vercel + Render)
 - [ ] Table extraction from PDFs
 - [ ] Clause summarization mode
 - [ ] REST API authentication (API keys for B2B)
@@ -343,7 +384,7 @@ Please read [CONTRIBUTING.md](CONTRIBUTING.md) before submitting.
 
 ---
 
-## Learning resources
+## Learning Resources
 
 Building this project teaches you:
 
@@ -355,7 +396,7 @@ Building this project teaches you:
 - **FastAPI async** — background tasks, streaming, dependency injection
 - **Production deployment** — Docker, Render, Vite environment configuration
 
-Follow the build journey: [sarasbari.dev/ragify-ai](https://github.com/Sarasbari)
+Follow the build journey: [github.com/Sarasbari](https://github.com/Sarasbari)
 
 ---
 
@@ -372,6 +413,6 @@ BTech IT · VCET Vasai · 2025
 
 If this project helped you understand RAG, please consider giving it a star.
 
-[![Star on GitHub](https://img.shields.io/github/stars/Sarasbari/ragify-ai?style=social)](https://github.com/Sarasbari/ragify-ai)
+[![Star on GitHub](https://img.shields.io/github/stars/Sarasbari/RAGify-AI?style=social)](https://github.com/Sarasbari/RAGify-AI)
 
 </div>
