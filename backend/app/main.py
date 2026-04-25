@@ -10,9 +10,9 @@ async def lifespan(app: FastAPI):
     try:
         from app.core.database import init_db
         await init_db()
-        print("✅ Database initialized")
+        print("[OK] Database initialized")
     except Exception as e:
-        print(f"⚠️ DB init warning: {e} — will retry on first request")
+        print(f"[WARN] DB init warning: {e} -- will retry on first request")
     yield
 
 app = FastAPI(

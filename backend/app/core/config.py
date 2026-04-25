@@ -7,6 +7,8 @@ class Settings(BaseSettings):
     GROQ_API_KEY: str
     COHERE_API_KEY: str = ""
 
+    ALLOWED_ORIGINS: str = "http://localhost:5173"
+
     CHUNK_SIZE: int = 600
     CHUNK_OVERLAP: int = 100
     TOP_K: int = 5
