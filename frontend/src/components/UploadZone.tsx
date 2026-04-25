@@ -237,7 +237,7 @@ export function UploadZone({ onReady }: Props) {
             {STAGES.map((stage, i) => {
               const isDone    = i < stageIndex
               const isActive  = i === stageIndex
-              const isPending = i > stageIndex
+
 
               return (
                 <div key={stage.label} className="flex items-center gap-2">
