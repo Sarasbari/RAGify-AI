@@ -41,7 +41,7 @@ function useSimulatedProgress(active: boolean) {
     const totalDuration = STAGES.reduce((s, st) => s + st.duration, 0)
     // each stage occupies a % slice of the bar
     const stageWidths = STAGES.map(st => (st.duration / totalDuration) * 100)
-    const stageOffsets = stageWidths.reduce<number[]>((acc, w, i) => {
+    const stageOffsets = stageWidths.reduce<number[]>((acc, _w, i) => {
       acc.push(i === 0 ? 0 : acc[i - 1] + stageWidths[i - 1])
       return acc
     }, [])

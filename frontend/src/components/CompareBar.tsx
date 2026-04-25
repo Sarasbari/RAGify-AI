@@ -1,5 +1,5 @@
 import { useState } from "react"
-import { GitCompare, X, ChevronRight } from "lucide-react"
+import { GitCompare, ChevronRight } from "lucide-react"
 import { DocumentMeta } from "../lib/api"
 
 interface Props {
